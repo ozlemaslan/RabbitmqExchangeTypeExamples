@@ -8,6 +8,7 @@ namespace RabbitMq.Producer.ExchangeTypes.Direct
     public class DirectExchangeType : IBaseExchangeType
     {
         private readonly RabbitMqService _rabbitMqService;
+        private readonly ICacheService _cacheService;
 
         private const string exchangeName = "direct-exchange";
 
@@ -23,21 +24,26 @@ namespace RabbitMq.Producer.ExchangeTypes.Direct
         private const string message2 = "2. direct has sent to Rabbitmq.";
         private const string message3 = "3. direct has sent to Rabbitmq.";
 
+        private const string cacheKey = $"cache-";
+
         private IModel _channel;
-        public DirectExchangeType(IConnectionFactory connectionFactory)
+        public DirectExchangeType(IConnectionFactory connectionFactory, ICacheService cacheService)
         {
 
             _rabbitMqService = new RabbitMqService(connectionFactory);
 
             if (!_rabbitMqService.IsConnected)//ilk başta hiç rabbitte bağlantı yoksa git polly ile 5 kere tekrar dene.
             {
-                bool isConnected=_rabbitMqService.TryConnect(); // buradan true gelirse bağlantı var demek
+                bool isConnected = _rabbitMqService.TryConnect(); // buradan true gelirse bağlantı var demek
                 if (isConnected)
                 {
                     _channel = _rabbitMqService.CreateModel();
                 }
             }
             else _channel = _rabbitMqService.CreateModel();
+
+            _cacheService = cacheService;
+
         }
         public void CreateExchangeAndQueueDeclare()
         {
@@ -58,18 +64,39 @@ namespace RabbitMq.Producer.ExchangeTypes.Direct
 
         }
 
-        public void SendToQueue()
+        public async void SendToQueue()
         {
             if (_channel!=null)
             {
                 _channel.BasicPublish(exchangeName, routingKey1, _channel.CreateBasicProperties(), Encoding.UTF8.GetBytes(message1));
+
+                await _cacheService.SetAsync(cacheKey+queueName1, Encoding.UTF8.GetBytes(message1), settings =>
+                {
+                    settings.AbsoluteTime = 10; 
+                    settings.SlidingTime = 5;  
+                });
+
                 Console.Write($" Message Sent {message1}");
 
                 _channel.BasicPublish(exchangeName, routingKey2, _channel.CreateBasicProperties(), Encoding.UTF8.GetBytes(message2));
-                Console.Write($" Message Sent {message1}");
+
+                await _cacheService.SetAsync(cacheKey+queueName2, Encoding.UTF8.GetBytes(message2), settings =>
+                {
+                    settings.AbsoluteTime = 10;
+                    settings.SlidingTime = 5;
+                });
+
+                Console.Write($" Message Sent {message2}");
 
                 _channel.BasicPublish(exchangeName, routingKey3, _channel.CreateBasicProperties(), Encoding.UTF8.GetBytes(message3));
-                Console.Write($" Message Sent {message1}");
+
+
+                await _cacheService.SetAsync(cacheKey + queueName3, Encoding.UTF8.GetBytes(message3), settings =>
+                {
+                    settings.AbsoluteTime = 10;
+                    settings.SlidingTime = 5;
+                });
+                Console.Write($" Message Sent {message3}");
             }
             else throw new Exception("It has not connected to rabbitmq.");
         }

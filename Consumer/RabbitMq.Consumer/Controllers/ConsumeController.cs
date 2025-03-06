@@ -17,7 +17,7 @@ namespace RabbitMq.Consumer.Controllers
         {
             try
             {
-                List<string> queueNames = FindQueueName(ExchangeType.Fanout);
+                List<string> queueNames = FindQueueName(ExchangeType.Topic);
 
                 string queueName = "";
 
@@ -25,7 +25,7 @@ namespace RabbitMq.Consumer.Controllers
                 {
                     bool isConnected = _rabbitMqService.TryConnect();
                     if (isConnected)
-                    {
+                    { 
                         _channel = _rabbitMqService.CreateModel();
                     }
                 }
