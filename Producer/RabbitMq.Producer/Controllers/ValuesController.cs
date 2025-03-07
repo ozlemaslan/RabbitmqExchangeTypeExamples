@@ -11,10 +11,10 @@ namespace RabbitMq.Producer.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ValuesController(IConnectionFactory connectionFactory,ICacheService cacheService) : ControllerBase
+    public class ValuesController(IConnectionFactory connectionFactory, ICacheService cacheService) : ControllerBase
     {
 
-        [HttpGet]
+        [HttpGet("SendMessageQueue")]
         public async Task<IActionResult> SendMessage()
         {
             try
@@ -30,20 +30,29 @@ namespace RabbitMq.Producer.Controllers
                 throw new Exception(ex.Message);
             }
 
-            var list = await ReadMessagesFromCache();
+            //var list = await ReadMessagesFromCache();
 
-            Console.WriteLine("Cacheden okunan veriler: ", list);
+            //Console.WriteLine("Cacheden okunan veriler: ", list);
 
             return Ok();
         }
 
+        [HttpGet("GetReadCacheValues")]
+        public async Task<IActionResult> GetReadCacheValues()
+        {
+            var list = await ReadMessagesFromCache();
+
+            Console.WriteLine("Cacheden okunan veriler: \n", list);
+
+            return Ok(list);
+        }
 
         private IBaseExchangeType FindExchangeType(string exchangeType)
         {
             switch (exchangeType)
             {
                 case ExchangeType.Direct:
-                    return new DirectExchangeType(connectionFactory,cacheService);
+                    return new DirectExchangeType(connectionFactory, cacheService);
                 case ExchangeType.Fanout:
                     return new FanoutExchangeType(connectionFactory);
                 case ExchangeType.Topic:
